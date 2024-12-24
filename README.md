@@ -4,9 +4,9 @@
 
 Переменные для запуска
 ```
-TODO_PORT="7540"
-TODO_LISTEN_ADDRESS="127.0.0.1"
-TODO_DBFILE_PATH="scheduler.db"
+export TODO_PORT="7540"
+export TODO_LISTEN_ADDRESS="127.0.0.1"
+export TODO_DBFILE_PATH=$(pwd)/scheduler.db
 ```
 
 Запуск

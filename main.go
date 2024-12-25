@@ -631,44 +631,6 @@ func handleTaskDone(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(map[string]any{})
 }
 
-func handleNextDate(w http.ResponseWriter, r *http.Request) {
-	// Получаем параметры из строки запроса
-	nowStr := r.URL.Query().Get("now")
-	dateStr := r.URL.Query().Get("date")
-	repeat := r.URL.Query().Get("repeat")
-
-	// Проверяем, что все необходимые параметры заданы
-	if nowStr == "" || dateStr == "" || repeat == "" {
-		http.Error(w, "Missing required parameters", http.StatusBadRequest)
-		return
-	}
-
-	// Преобразуем строки в типы данных
-	now, err := time.Parse("20060102", nowStr)
-	if err != nil {
-		http.Error(w, "Invalid 'now' date format, expected 'YYYYMMDD'", http.StatusBadRequest)
-		return
-	}
-
-	date, err := time.Parse("20060102", dateStr)
-	if err != nil {
-		http.Error(w, "Invalid 'date' format, expected 'YYYYMMDD'", http.StatusBadRequest)
-		return
-	}
-
-	// Вызываем функцию nextDate для вычисления следующей даты
-	nextDateValue, err := nextDate(now, date, repeat)
-
-	// Возвращаем результат
-	response := map[string]string{
-		"next_date": nextDateValue.Format("20060102"),
-	}
-
-	// Преобразуем ответ в JSON
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
 func main() {
 	config := loadConfig()
 
@@ -683,7 +645,6 @@ func main() {
 	mux.HandleFunc("/api/task", handleTask)
 	mux.HandleFunc("/api/tasks", handleGetTasks)
 	mux.HandleFunc("/api/task/done", handleTaskDone)
-	mux.HandleFunc("/api/nextdate", handleNextDate)
 
 	fmt.Printf("Сервер запущен на http://%s:%s\n", config.ListenAddress, config.ListenPort)
 	if err := http.ListenAndServe(config.ListenAddress+":"+config.ListenPort, mux); err != nil {

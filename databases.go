@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Инициализация базы данных
 func initDb(config config) error {
 	var migration bool
 
@@ -20,6 +21,11 @@ func initDb(config config) error {
 	db, err = sql.Open("sqlite", config.DbFilePath)
 	if err != nil {
 		return fmt.Errorf("ошибка открытия базы данных: %v", err)
+	}
+
+	// Проверяем, что база данных доступна
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("ошибка подключения к базе данных: %v", err)
 	}
 
 	if migration {
@@ -49,29 +55,47 @@ func initDb(config config) error {
 	return nil
 }
 
+// Обновление задачи в базе данных
 func updateTaskInDB(task Task) error {
-	// Парсим дату задачи
-	var taskDate time.Time
+	const layout = "20060102"
 	var err error
+	var nextTaskDate string
 
-	if task.Date != "" {
-		// Если дата указана, пытаемся её распарсить
-		taskDate, err = time.Parse("20060102", task.Date)
-		if err != nil {
-			return fmt.Errorf("неправильный формат даты, ожидается YYYYMMDD: %v", err)
+	// Если повторение не указано
+	if task.Repeat == "" {
+		// Парсим дату задачи, если она указана
+		var taskDate time.Time
+		if task.Date != "" {
+			taskDate, err = time.Parse(layout, task.Date)
+			if err != nil {
+				return fmt.Errorf("ошибка при разборе даты: %v", err)
+			}
+			fmt.Println("test update date")
+		} else {
+			// Если дата не указана, используем текущую
+			taskDate = time.Now()
 		}
-	} else {
-		// Если дата не указана, используем текущую
-		taskDate = time.Now()
-	}
 
-	// Проверяем правило повторения
-	if task.Repeat != "" {
-		_, err := nextDate(taskDate, task.Repeat)
+		// Если дата задачи раньше текущей, подставляем текущую дату
+		if taskDate.Before(time.Now()) {
+			taskDate = time.Now()
+		}
+
+		// Форматируем дату в нужный формат
+		nextTaskDate = taskDate.Format(layout)
+	} else {
+		// Если повторение указано, рассчитываем следующую дату с использованием функции NextDate
+		nextTaskDate, err = NextDate(time.Now(), task.Date, task.Repeat)
 		if err != nil {
 			return fmt.Errorf("не удалось вычислить следующую дату выполнения: %v", err)
 		}
 	}
+
+	// Рассчитываем следующую дату выполнения с использованием NextDate
+	//nextTaskDate, err = NextDate(time.Now(), task.Date, task.Repeat)
+	//if err != nil {
+	//	return fmt.Errorf("не удалось вычислить следующую дату выполнения: %v", err)
+	//}
 
 	// Обновляем задачу в базе данных
 	query := `
@@ -79,7 +103,7 @@ func updateTaskInDB(task Task) error {
 		SET date = ?, title = ?, comment = ?, repeat = ?
 		WHERE id = ?;
 	`
-	result, err := db.Exec(query, taskDate.Format("20060102"), task.Title, task.Comment, task.Repeat, task.ID)
+	result, err := db.Exec(query, nextTaskDate, task.Title, task.Comment, task.Repeat, task.ID)
 	if err != nil {
 		return fmt.Errorf("ошибка обновления задачи: %v", err)
 	}
@@ -90,50 +114,53 @@ func updateTaskInDB(task Task) error {
 		return fmt.Errorf("ошибка проверки обновления: %v", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("задача с id=%s не найдена", task.ID)
+		return fmt.Errorf("задача с id=%d не найдена", task.ID)
 	}
 
 	return nil
 }
 
+// Сохранение новой задачи в базе данных
 func saveTaskToDB(task Task) (int64, error) {
-	// Парсим дату задачи
-	var taskDate time.Time
+	const layout = "20060102"
 	var err error
+	var nextTaskDate string
 
-	// Если дата не указана, подставляем сегодняшнюю
-	if task.Date == "" {
-		taskDate = time.Now()
-	} else {
-		// Если дата указана, пытаемся её распарсить
-		taskDate, err = time.Parse("20060102", task.Date)
-		if err != nil {
-			return -1, fmt.Errorf("неправильный формат даты, ожидается YYYYMMDD: %v", err)
-		}
-	}
-
-	// Если дата меньше сегодняшнего дня, подставляем текущую дату
-	if taskDate.Before(time.Now()) {
-		taskDate = time.Now()
-	}
-
-	// Если правило повторения пустое или отсутствует, дата остаётся сегодняшней
+	// Если повторение не указано
 	if task.Repeat == "" {
-		// Ничего не делаем, сохраняем текущую дату
+		// Парсим дату задачи, если она указана
+		var taskDate time.Time
+		if task.Date != "" {
+			taskDate, err = time.Parse(layout, task.Date)
+			if err != nil {
+				return -1, fmt.Errorf("ошибка при разборе даты: %v", err)
+			}
+		} else {
+			// Если дата не указана, используем текущую
+			taskDate = time.Now()
+		}
+
+		// Если дата задачи раньше текущей, подставляем текущую дату
+		if taskDate.Before(time.Now()) {
+			taskDate = time.Now()
+		}
+
+		// Форматируем дату в нужный формат
+		nextTaskDate = taskDate.Format(layout)
 	} else {
-		// Проверяем правило повторения для валидации
-		_, err := nextDate(taskDate, task.Repeat)
+		// Если повторение указано, рассчитываем следующую дату с использованием функции NextDate
+		nextTaskDate, err = NextDate(time.Now(), task.Date, task.Repeat)
 		if err != nil {
-			return -1, fmt.Errorf("не удалось вычислить следующую дату выполнения: %v", err)
+			return 0, fmt.Errorf("не удалось вычислить следующую дату выполнения: %v", err)
 		}
 	}
 
 	// Сохраняем задачу в базу данных
 	query := `
-	INSERT INTO scheduler (date, title, comment, repeat) 
-	VALUES (?, ?, ?, ?);
+		INSERT INTO scheduler (date, title, comment, repeat) 
+		VALUES (?, ?, ?, ?);
 	`
-	result, err := db.Exec(query, taskDate.Format("20060102"), task.Title, task.Comment, task.Repeat)
+	result, err := db.Exec(query, nextTaskDate, task.Title, task.Comment, task.Repeat)
 	if err != nil {
 		return 0, fmt.Errorf("ошибка сохранения задачи: %v", err)
 	}

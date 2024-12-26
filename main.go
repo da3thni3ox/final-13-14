@@ -54,6 +54,7 @@ func main() {
 	mux.HandleFunc("/api/task", handleTask)
 	mux.HandleFunc("/api/tasks", handleGetTasks)
 	mux.HandleFunc("/api/task/done", handleTaskDone)
+	mux.HandleFunc("/api/nextdate", apiNextDateHandler)
 
 	fmt.Printf("Сервер запущен на http://%s:%s\n", config.ListenAddress, config.ListenPort)
 	if err := http.ListenAndServe(config.ListenAddress+":"+config.ListenPort, mux); err != nil {

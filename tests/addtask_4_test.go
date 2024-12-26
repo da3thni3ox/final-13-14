@@ -120,6 +120,7 @@ func TestAddTask(t *testing.T) {
 				"comment": v.comment,
 				"repeat":  v.repeat,
 			}, http.MethodPost)
+
 			assert.NoError(t, err)
 
 			e, ok := m["error"]

@@ -110,6 +110,8 @@ func handleTask(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		fmt.Println(task.Date, " ", task.Title, " ", task.Repeat)
+
 		if task.Title == "" {
 			res.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(res).Encode(map[string]string{
@@ -121,6 +123,7 @@ func handleTask(res http.ResponseWriter, req *http.Request) {
 		id, err := saveTaskToDB(task)
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
+			fmt.Println("error add tasks")
 			json.NewEncoder(res).Encode(map[string]string{
 				"error": err.Error(),
 			})
@@ -306,17 +309,20 @@ func handleTaskDone(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Если задача периодическая, рассчитываем следующую дату выполнения
-	taskDate, err := time.Parse("20060102", task.Date)
-	if err != nil {
-		res.Header().Set("Content-Type", "application/json")
-		res.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(res).Encode(map[string]string{
-			"error": fmt.Sprintf("Ошибка парсинга даты: %v", err),
-		})
-		return
-	}
+	// task.Date — это строка, которую нужно парсить в time.Time
+	// taskDate, err := time.Parse("20060102", task.Date)
+	// if err != nil {
+	// 	res.Header().Set("Content-Type", "application/json")
+	// 	res.WriteHeader(http.StatusInternalServerError)
+	// 	json.NewEncoder(res).Encode(map[string]string{
+	// 		"error": fmt.Sprintf("Ошибка парсинга даты: %v", err),
+	// 	})
+	// 	return
+	// }
 
-	nextExecutionDate, err := nextDate(taskDate, task.Repeat)
+	// Получаем следующую дату для выполнения задачи
+	now := time.Now()
+	nextExecutionDate, err := NextDate(now, task.Date, task.Repeat)
 	if err != nil {
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusInternalServerError)
@@ -326,12 +332,23 @@ func handleTaskDone(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// nextExecutionDate должен быть типом time.Time, а не строкой
+	parsedNextExecutionDate, err := time.Parse("20060102", nextExecutionDate)
+	if err != nil {
+		res.Header().Set("Content-Type", "application/json")
+		res.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(res).Encode(map[string]string{
+			"error": fmt.Sprintf("Ошибка парсинга следующей даты: %v", err),
+		})
+		return
+	}
+
 	// Обновляем задачу с новой датой
 	_, err = db.Exec(`
 		UPDATE scheduler
 		SET date = ?
 		WHERE id = ?;
-	`, nextExecutionDate.Format("20060102"), id)
+	`, parsedNextExecutionDate.Format("20060102"), id)
 	if err != nil {
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusInternalServerError)
@@ -345,4 +362,30 @@ func handleTaskDone(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	json.NewEncoder(res).Encode(map[string]any{})
+}
+
+func apiNextDateHandler(res http.ResponseWriter, req *http.Request) {
+	nowStr := req.FormValue("now")
+	dateStr := req.FormValue("date")
+	repeat := req.FormValue("repeat")
+
+	const layout = "20060102"
+	now, err := time.Parse(layout, nowStr)
+	if err != nil {
+		http.Error(res, "invalid 'now' parameter", http.StatusBadRequest)
+		return
+	}
+
+	nextDate, err := NextDate(now, dateStr, repeat)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		res.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(res).Encode(map[string]string{
+			"error": "",
+		})
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte(nextDate))
 }

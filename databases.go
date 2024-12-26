@@ -57,45 +57,12 @@ func initDb(config config) error {
 
 // Обновление задачи в базе данных
 func updateTaskInDB(task Task) error {
-	const layout = "20060102"
-	var err error
-	var nextTaskDate string
-
-	// Если повторение не указано
-	if task.Repeat == "" {
-		// Парсим дату задачи, если она указана
-		var taskDate time.Time
-		if task.Date != "" {
-			taskDate, err = time.Parse(layout, task.Date)
-			if err != nil {
-				return fmt.Errorf("ошибка при разборе даты: %v", err)
-			}
-			fmt.Println("test update date")
-		} else {
-			// Если дата не указана, используем текущую
-			taskDate = time.Now()
-		}
-
-		// Если дата задачи раньше текущей, подставляем текущую дату
-		if taskDate.Before(time.Now()) {
-			taskDate = time.Now()
-		}
-
-		// Форматируем дату в нужный формат
-		nextTaskDate = taskDate.Format(layout)
-	} else {
-		// Если повторение указано, рассчитываем следующую дату с использованием функции NextDate
-		nextTaskDate, err = NextDate(time.Now(), task.Date, task.Repeat)
-		if err != nil {
-			return fmt.Errorf("не удалось вычислить следующую дату выполнения: %v", err)
-		}
-	}
 
 	// Рассчитываем следующую дату выполнения с использованием NextDate
-	//nextTaskDate, err = NextDate(time.Now(), task.Date, task.Repeat)
-	//if err != nil {
-	//	return fmt.Errorf("не удалось вычислить следующую дату выполнения: %v", err)
-	//}
+	nextTaskDate, err := NextDate(time.Now(), task.Date, task.Repeat)
+	if err != nil {
+		return fmt.Errorf("не удалось вычислить следующую дату выполнения: %v", err)
+	}
 
 	// Обновляем задачу в базе данных
 	query := `

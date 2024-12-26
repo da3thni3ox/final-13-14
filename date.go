@@ -44,7 +44,6 @@ func NextDate(nowIn time.Time, date string, repeat string) (string, error) {
 			for nextDate.Before(now) || nextDate.Equal(now) {
 				nextDate = nextDate.AddDate(0, 0, days)
 			}
-			fmt.Println(now, " ", nextDate)
 		} else if nextDate.Equal(now) {
 			// Если дата равна сегодняшней, то это уже дата для повторения
 			nextDate = now

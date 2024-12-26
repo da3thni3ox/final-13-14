@@ -110,8 +110,6 @@ func handleTask(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		fmt.Println(task.Date, " ", task.Title, " ", task.Repeat)
-
 		if task.Title == "" {
 			res.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(res).Encode(map[string]string{
@@ -123,7 +121,6 @@ func handleTask(res http.ResponseWriter, req *http.Request) {
 		id, err := saveTaskToDB(task)
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
-			fmt.Println("error add tasks")
 			json.NewEncoder(res).Encode(map[string]string{
 				"error": err.Error(),
 			})

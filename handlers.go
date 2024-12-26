@@ -307,18 +307,18 @@ func handleTaskDone(res http.ResponseWriter, req *http.Request) {
 
 	// Если задача периодическая, рассчитываем следующую дату выполнения
 	// task.Date — это строка, которую нужно парсить в time.Time
-	// taskDate, err := time.Parse("20060102", task.Date)
-	// if err != nil {
-	// 	res.Header().Set("Content-Type", "application/json")
-	// 	res.WriteHeader(http.StatusInternalServerError)
-	// 	json.NewEncoder(res).Encode(map[string]string{
-	// 		"error": fmt.Sprintf("Ошибка парсинга даты: %v", err),
-	// 	})
-	// 	return
-	// }
+	//taskDate, err := time.Parse("20060102", task.Date)
+	//if err != nil {
+	//	res.Header().Set("Content-Type", "application/json")
+	//	res.WriteHeader(http.StatusInternalServerError)
+	//	json.NewEncoder(res).Encode(map[string]string{
+	//		"error": fmt.Sprintf("Ошибка парсинга даты: %v", err),
+	//	})
+	//	return
+	//}
 
 	// Получаем следующую дату для выполнения задачи
-	now := time.Now()
+	now := time.Now().AddDate(0, 0, 1)
 	nextExecutionDate, err := NextDate(now, task.Date, task.Repeat)
 	if err != nil {
 		res.Header().Set("Content-Type", "application/json")
